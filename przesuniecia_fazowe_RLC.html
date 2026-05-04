@@ -1,0 +1,109 @@
+
+<h2 class="sr-only">Wykres sinusoid napięć i prądu w obwodzie szeregowym RLC z przesunięciami fazowymi</h2>
+
+<div style="display:flex;flex-wrap:wrap;gap:10px;margin:14px 0 10px;font-size:13px;">
+  <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:3px;background:#888780;display:inline-block"></span><span style="color:var(--color-text-secondary)">I — prąd (odniesienie)</span></span>
+  <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:3px;background:#BA7517;display:inline-block"></span><span style="color:var(--color-text-secondary)">U<sub>R</sub> = 61,8 V (zgodna z prądem)</span></span>
+  <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:3px;background:#993C1D;display:inline-block;border-top:2px dashed #993C1D;height:0"></span><span style="color:var(--color-text-secondary)">U<sub>L</sub> = 242,6 V (+90°)</span></span>
+  <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:3px;background:#185FA5;display:inline-block;border-top:2px dashed #185FA5;height:0"></span><span style="color:var(--color-text-secondary)">U<sub>C</sub> = 163,7 V (−90°)</span></span>
+  <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:3px;background:#3B6D11;display:inline-block"></span><span style="color:var(--color-text-secondary)">U = 100 V (wypadkowe)</span></span>
+</div>
+
+<div style="position:relative;width:100%;height:380px;">
+  <canvas id="waveChart" role="img" aria-label="Sinusoidy napięć w obwodzie RLC: U_R w fazie z prądem, U_L wyprzedza o 90 stopni, U_C opóźnia o 90 stopni">Napięcia: U_R 61.8V (0 stopni), U_L 242.6V (+90 stopni), U_C 163.7V (-90 stopni), U 100V (wypadkowe).</canvas>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin:14px 0 8px;">
+  <div style="background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:10px 14px;">
+    <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:3px;">U<sub>R</sub> — faza</div>
+    <div style="font-size:16px;font-weight:500;color:var(--color-text-primary);">0°</div>
+    <div style="font-size:11px;color:var(--color-text-tertiary);">zgodna z prądem</div>
+  </div>
+  <div style="background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:10px 14px;">
+    <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:3px;">U<sub>L</sub> — faza</div>
+    <div style="font-size:16px;font-weight:500;color:var(--color-text-primary);">+90°</div>
+    <div style="font-size:11px;color:var(--color-text-tertiary);">wyprzedza prąd</div>
+  </div>
+  <div style="background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:10px 14px;">
+    <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:3px;">U<sub>C</sub> — faza</div>
+    <div style="font-size:16px;font-weight:500;color:var(--color-text-primary);">−90°</div>
+    <div style="font-size:11px;color:var(--color-text-tertiary);">opóźnia się za prądem</div>
+  </div>
+  <div style="background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:10px 14px;">
+    <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:3px;">U — faza</div>
+    <div style="font-size:16px;font-weight:500;color:var(--color-text-primary);">+38°</div>
+    <div style="font-size:11px;color:var(--color-text-tertiary);">arctan(78,9/61,8)</div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const N = 300;
+const labels = [];
+const iData=[], urData=[], ulData=[], ucData=[], uData=[];
+
+const I_amp = 5.15 * Math.SQRT2;
+const UR_amp = 61.8 * Math.SQRT2;
+const UL_amp = 242.6 * Math.SQRT2;
+const UC_amp = 163.7 * Math.SQRT2;
+const U_amp  = 100   * Math.SQRT2;
+
+const phiU = Math.atan2(78.9, 61.8);
+
+for(let i=0;i<=N;i++){
+  const t = (i/N)*4*Math.PI;
+  labels.push(i % (N/4) === 0 ? (i/N*2).toFixed(1)+'T' : '');
+  iData.push(+(I_amp  * Math.sin(t)).toFixed(3));
+  urData.push(+(UR_amp * Math.sin(t)).toFixed(3));
+  ulData.push(+(UL_amp * Math.sin(t + Math.PI/2)).toFixed(3));
+  ucData.push(+(UC_amp * Math.sin(t - Math.PI/2)).toFixed(3));
+  uData.push(+(U_amp  * Math.sin(t + phiU)).toFixed(3));
+}
+
+const ctx = document.getElementById('waveChart').getContext('2d');
+new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels,
+    datasets: [
+      { label: 'I (A×10)', data: iData.map(v=>+(v*10).toFixed(2)), borderColor:'#888780', borderWidth:1.5, borderDash:[], pointRadius:0, tension:0.4 },
+      { label: 'U_R (V)', data: urData, borderColor:'#BA7517', borderWidth:2, pointRadius:0, tension:0.4 },
+      { label: 'U_L (V)', data: ulData, borderColor:'#993C1D', borderWidth:2, borderDash:[6,4], pointRadius:0, tension:0.4 },
+      { label: 'U_C (V)', data: ucData, borderColor:'#185FA5', borderWidth:2, borderDash:[6,4], pointRadius:0, tension:0.4 },
+      { label: 'U (V)',   data: uData,  borderColor:'#3B6D11', borderWidth:2.5, pointRadius:0, tension:0.4 },
+    ]
+  },
+  options: {
+    responsive:true, maintainAspectRatio:false,
+    animation:false,
+    plugins:{
+      legend:{display:false},
+      tooltip:{
+        mode:'index', intersect:false,
+        callbacks:{
+          label: ctx => {
+            const v = ctx.raw;
+            if(ctx.dataset.label.startsWith('I')) return ' I: ' + (v/10).toFixed(2) + ' A';
+            return ' ' + ctx.dataset.label + ': ' + v.toFixed(1) + ' V';
+          }
+        }
+      }
+    },
+    scales:{
+      x:{
+        ticks:{
+          color:'#888780', font:{size:11},
+          callback:(val,i)=>labels[i]||null
+        },
+        grid:{color:'rgba(136,135,128,0.15)'},
+        title:{display:true, text:'czas (okresy)', color:'#888780', font:{size:12}}
+      },
+      y:{
+        ticks:{color:'#888780', font:{size:11}, callback:v=>v+''},
+        grid:{color:'rgba(136,135,128,0.15)'},
+        title:{display:true, text:'napięcie (V) / prąd (×10 A)', color:'#888780', font:{size:12}}
+      }
+    }
+  }
+});
+</script>
