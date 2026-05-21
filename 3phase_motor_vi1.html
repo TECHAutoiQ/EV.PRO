@@ -1,0 +1,1240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3-Phase Motor Current Visualizer</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;600;700&display=swap');
+
+  :root {
+    --bg: #0d0f14;
+    --surface: #141720;
+    --surface2: #1c2030;
+    --border: #2a2f42;
+    --phA: #e84040;
+    --phB: #4a9eff;
+    --phC: #3ecf6a;
+    --cursor: #f0c040;
+    --text: #c8d0e0;
+    --text-dim: #6a7490;
+    --label-bg: #2e1f6e;
+    --thumb-shadow: rgba(240,192,64,0.5);
+    --bar-bg: #2e3448;
+  }
+
+  [data-theme="light"] {
+    --bg: #eef1f8;
+    --surface: #ffffff;
+    --surface2: #e4e8f4;
+    --border: #bcc5d8;
+    --cursor: #b07800;
+    --text: #1a1e2c;
+    --text-dim: #4a5580;
+    --label-bg: #d8dff0;
+    --thumb-shadow: rgba(176,120,0,0.35);
+    --bar-bg: #c4cee0;
+  }
+
+  /* ---- THEME TOGGLE BUTTON ---- */
+  #btnTheme {
+    position: fixed;
+    top: 14px;
+    right: 16px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text-dim);
+    font-size: 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.15s, background 0.15s;
+    z-index: 100;
+    padding: 0;
+    line-height: 1;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  #btnTheme:hover {
+    border-color: var(--cursor);
+    color: var(--cursor);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Barlow', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    user-select: none;
+  }
+
+  h1 {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 1.1rem;
+    letter-spacing: 0.12em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    text-align: center;
+  }
+
+  h1 span { color: var(--cursor); }
+
+  .main-layout {
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    gap: 16px;
+    width: 100%;
+    max-width: 1100px;
+    align-items: stretch;
+  }
+
+  /* ---- LEFT COLUMN ---- */
+  .left-col {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  /* ---- CHART PANEL ---- */
+  .chart-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px 12px;
+    position: relative;
+  }
+
+  canvas#waveCanvas {
+    display: block;
+    flex: 1;
+    width: 100%;
+    min-height: 200px;
+    cursor: ew-resize;
+    border-radius: 4px;
+  }
+
+  /* ---- RIGHT COLUMN ---- */
+  .right-col {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  /* ---- PHASOR / WINDING DIAGRAM ---- */
+  .phasor-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    text-align: center;
+  }
+
+  .phasor-panel h2 {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  canvas#phasorCanvas {
+    display: block;
+    margin: 0 auto;
+  }
+
+  /* ---- CURRENT READOUT ---- */
+  .readout-panel {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+  }
+
+  .readout-panel h2 {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  .phase-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    margin-bottom: 6px;
+    background: var(--surface2);
+    min-height: 40px;
+  }
+
+  .phase-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .phase-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.85rem;
+    font-weight: 600;
+    width: 22px;
+  }
+
+  .phase-bar-wrap {
+    flex: 1;
+    height: 10px;
+    background: var(--bar-bg);
+    border-radius: 5px;
+    overflow: hidden;
+  }
+
+  .phase-bar {
+    height: 100%;
+    border-radius: 5px;
+    transition: width 0.03s, background 0.03s;
+  }
+
+  .phase-value {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.85rem;
+    width: 68px;
+    text-align: right;
+    color: var(--text);
+  }
+
+  .direction-arrow {
+    font-size: 0.9rem;
+    width: 18px;
+    height: 22px;
+    line-height: 22px;
+    text-align: center;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+
+  /* ---- SNAP BUTTONS ---- */
+  .snap-buttons {
+    display: flex;
+    gap: 4px;
+    margin-top: 10px;
+    width: 100%;
+  }
+
+  .snap-btn {
+    flex: 1;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.68rem;
+    padding: 5px 0;
+    border-radius: 5px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 0.12s;
+    text-align: center;
+    white-space: nowrap;
+    min-width: 0;
+  }
+
+  .snap-btn:hover {
+    border-color: var(--cursor);
+    color: var(--cursor);
+    background: #1e2030;
+  }
+
+  .snap-btn.snap-active {
+    background: var(--cursor);
+    color: var(--bg);
+    border-color: var(--cursor);
+    font-weight: 700;
+  }
+
+  /* ---- CONTROLS PANEL ---- */
+  .controls-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+  }
+
+  .controls-panel h2 {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  .slider-group {
+    margin-bottom: 14px;
+  }
+
+  .slider-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+
+  .slider-label span {
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    font-family: 'Barlow', sans-serif;
+  }
+
+  .slider-label strong {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.9rem;
+    color: var(--cursor);
+  }
+
+  input[type=range] {
+    width: 100%;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: var(--border);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--cursor);
+    border: 2px solid var(--bg);
+    cursor: pointer;
+    box-shadow: 0 0 6px var(--thumb-shadow);
+  }
+
+  input[type=range]::-moz-range-thumb {
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--cursor);
+    border: 2px solid var(--bg);
+    cursor: pointer;
+  }
+
+  .angle-display {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    text-align: center;
+    margin-top: 8px;
+  }
+
+  .angle-display span { color: var(--cursor); font-size: 0.85rem; }
+
+  /* ---- BOTTOM CONTROLS ---- */
+  .bottom-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    width: 100%;
+    max-width: 1100px;
+    margin-top: 4px;
+  }
+
+  button {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+    padding: 7px 16px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 0.15s;
+    text-transform: uppercase;
+  }
+
+  button:hover { border-color: var(--cursor); color: var(--cursor); }
+  button.active { background: var(--cursor); color: var(--bg); border-color: var(--cursor); font-weight: 700; }
+
+  .angle-slider-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 14px;
+  }
+
+  .angle-slider-wrap label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+
+  .angle-slider-wrap input[type=range] { flex: 1; }
+
+  .angle-val {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.88rem;
+    color: var(--cursor);
+    width: 46px;
+    text-align: right;
+  }
+</style>
+</head>
+<body>
+
+<button id="btnTheme" title="Toggle light/dark mode">🌙</button>
+
+<h1>3-Phase Motor Current <span>Waveform Analyzer</span></h1>
+
+<div class="main-layout">
+  <!-- LEFT COLUMN: waveform + snap buttons + motor parameters -->
+  <div class="left-col">
+
+    <div class="chart-panel">
+      <canvas id="waveCanvas"></canvas>
+      <div class="snap-buttons" id="snapButtons"></div>
+    </div>
+
+    <!-- CONTROLS (moved here from right column) -->
+    <div class="controls-panel">
+      <h2>Motor Parameters</h2>
+
+      <div class="slider-group">
+        <div class="slider-label">
+          <span>Pole Pairs (p)</span>
+          <strong id="poleLabel">p = 1</strong>
+        </div>
+        <input type="range" id="polePairs" min="1" max="8" step="1" value="1">
+        <div class="angle-display">
+          θ<sub>e</sub> = <span id="elecAngle">60°</span> &nbsp;|&nbsp; θ<sub>m</sub> = <span id="mechAngle">60°</span>
+        </div>
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-label">
+          <span>Amplitude</span>
+          <strong id="ampLabel">150 A</strong>
+        </div>
+        <input type="range" id="amplitude" min="50" max="300" step="10" value="150">
+      </div>
+    </div>
+
+  </div>
+
+  <!-- RIGHT COLUMN: winding diagram + instantaneous current -->
+  <div class="right-col">
+
+    <!-- PHASOR -->
+    <div class="phasor-panel">
+      <h2>Winding Current Flow</h2>
+      <canvas id="phasorCanvas" width="248" height="224"></canvas>
+    </div>
+
+    <!-- READOUT -->
+    <div class="readout-panel">
+      <h2>Instantaneous Current</h2>
+
+      <div class="phase-row" id="rowA">
+        <div class="phase-dot" style="background:var(--phA)"></div>
+        <span class="phase-label" style="color:var(--phA)">A</span>
+        <div class="phase-bar-wrap"><div class="phase-bar" id="barA"></div></div>
+        <span class="direction-arrow" id="arrA"></span>
+        <span class="phase-value" id="valA">0 A</span>
+      </div>
+
+      <div class="phase-row" id="rowB">
+        <div class="phase-dot" style="background:var(--phB)"></div>
+        <span class="phase-label" style="color:var(--phB)">B</span>
+        <div class="phase-bar-wrap"><div class="phase-bar" id="barB"></div></div>
+        <span class="direction-arrow" id="arrB"></span>
+        <span class="phase-value" id="valB">0 A</span>
+      </div>
+
+      <div class="phase-row" id="rowC">
+        <div class="phase-dot" style="background:var(--phC)"></div>
+        <span class="phase-label" style="color:var(--phC)">C</span>
+        <div class="phase-bar-wrap"><div class="phase-bar" id="barC"></div></div>
+        <span class="direction-arrow" id="arrC"></span>
+        <span class="phase-value" id="valC">0 A</span>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+<!-- BOTTOM CONTROLS -->
+<div class="bottom-controls">
+  <button id="btnAnimate" class="active">▶ Animate</button>
+  <button id="btnDash">Dash Flow: ON</button>
+
+  <div class="angle-slider-wrap">
+    <label>θ<sub>m</sub></label>
+    <input type="range" id="angleSlider" min="0" max="360" step="0.5" value="60">
+    <span class="angle-val" id="angleVal">60°</span>
+  </div>
+</div>
+
+<script>
+// ========== STATE ==========
+const state = {
+  angle: 60,
+  polePairs: 1,
+  amplitude: 150,
+  animating: true,
+  dashFlow: true,
+  animFrame: null,
+  animSpeed: 0.4,
+  dashOffset: 0,
+  theme: 'dark',
+};
+
+// ========== CANVAS THEME PALETTES ==========
+const THEME = {
+  dark: {
+    canvasBg:    '#0a0c10',
+    gridLine:    '#1e2434',
+    gridText:    '#4a5470',
+    labelBg:     '#1e1040',
+    cursorHi:    '#f0c040',
+    cursorLo:    '#d0a020',
+    valueActive: '#dce6f8',
+    valueDim:    '#3a4060',
+    nodeOuter:   '#2a3050',
+    nodeStroke:  '#5a6480',
+    nodeDot:     '#c8d0e0',
+    nodeLabel:   '#5a6480',
+    angleInfo:   '#3a4468',
+  },
+  light: {
+    canvasBg:    '#f4f7fc',
+    gridLine:    '#c8d0e4',
+    gridText:    '#6070a0',
+    labelBg:     '#dde4f4',
+    cursorHi:    '#b07800',
+    cursorLo:    '#8a5c00',
+    valueActive: '#1a2040',
+    valueDim:    '#8898c0',
+    nodeOuter:   '#ccd4e8',
+    nodeStroke:  '#8090b8',
+    nodeDot:     '#2a3050',
+    nodeLabel:   '#6070a0',
+    angleInfo:   '#9098b8',
+  },
+};
+
+// ========== ELEMENTS ==========
+const waveCanvas = document.getElementById('waveCanvas');
+const waveCtx = waveCanvas.getContext('2d');
+const phasorCanvas = document.getElementById('phasorCanvas');
+const phasorCtx = phasorCanvas.getContext('2d');
+
+const polePairsSlider = document.getElementById('polePairs');
+const amplitudeSlider = document.getElementById('amplitude');
+const angleSlider = document.getElementById('angleSlider');
+const poleLabel = document.getElementById('poleLabel');
+const ampLabel = document.getElementById('ampLabel');
+const angleVal = document.getElementById('angleVal');
+const elecAngleEl = document.getElementById('elecAngle');
+const mechAngleEl = document.getElementById('mechAngle');
+const btnAnimate = document.getElementById('btnAnimate');
+const btnDash = document.getElementById('btnDash');
+
+const valA = document.getElementById('valA');
+const valB = document.getElementById('valB');
+const valC = document.getElementById('valC');
+const barA = document.getElementById('barA');
+const barB = document.getElementById('barB');
+const barC = document.getElementById('barC');
+const arrA = document.getElementById('arrA');
+const arrB = document.getElementById('arrB');
+const arrC = document.getElementById('arrC');
+
+// ========== COLORS ==========
+const COL = {
+  A: '#e84040',
+  B: '#4a9eff',
+  C: '#3ecf6a',
+};
+
+// ========== MATH ==========
+function phaseCurrents(angleMech, p, amp) {
+  const e = angleMech * p * Math.PI / 180;
+  return {
+    A: amp * Math.sin(e),
+    B: amp * Math.sin(e - 2 * Math.PI / 3),
+    C: amp * Math.sin(e + 2 * Math.PI / 3),
+  };
+}
+
+// ========== WAVE CANVAS SIZING ==========
+function resizeWaveCanvas() {
+  const rect = waveCanvas.getBoundingClientRect();
+  const w = Math.round(rect.width);
+  const h = Math.round(rect.height);
+  if (w > 0) waveCanvas.width = w;
+  if (h > 80) waveCanvas.height = h;
+}
+
+// ========== DRAW WAVEFORM ==========
+function drawWave() {
+  const W = waveCanvas.width;
+  const H = waveCanvas.height;
+  const ctx = waveCtx;
+  const p = state.polePairs;
+  const amp = state.amplitude;
+  const angleMech = state.angle;
+  const T = THEME[state.theme];
+
+  // Background
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = T.canvasBg;
+  ctx.fillRect(0, 0, W, H);
+
+  // Margin
+  const ML = 52, MR = 14, MT = 28, MB = 28;
+  const plotW = W - ML - MR;
+  const plotH = H - MT - MB;
+  const cx = ML;
+  const cy = MT + plotH / 2;
+
+  // Grid
+  ctx.strokeStyle = T.gridLine;
+  ctx.lineWidth = 1;
+
+  // Horizontal grid lines
+  const gridLines = [-1, -0.5, 0, 0.5, 1];
+  const gridLabelsV = ['+150A', '+50A', '0', '-50A', '-150A'];
+  const gridLabelsVV = ['+300V', '+200V', '+150V', '+100V', '0V'];
+  ctx.font = '10px Share Tech Mono, monospace';
+  ctx.fillStyle = T.gridText;
+  gridLines.forEach((v, i) => {
+    const y = cy - v * (plotH / 2);
+    ctx.beginPath();
+    ctx.setLineDash([4, 4]);
+    ctx.moveTo(cx, y);
+    ctx.lineTo(cx + plotW, y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillText(gridLabelsVV[i], 2, y + 3);
+    ctx.fillText(gridLabelsV[i], W - MR - 46, y + 3);
+  });
+
+  // Vertical grid lines (every 30°)
+  for (let deg = 0; deg <= 360; deg += 30) {
+    const x = cx + (deg / 360) * plotW;
+    ctx.beginPath();
+    ctx.setLineDash([4, 4]);
+    ctx.strokeStyle = T.gridLine;
+    ctx.moveTo(x, MT);
+    ctx.lineTo(x, MT + plotH);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    if (deg > 0 || deg === 0) {
+      ctx.fillStyle = T.gridText;
+      ctx.fillText(deg, x - (deg < 100 ? 6 : 10), MT + plotH + 14);
+    }
+  }
+
+  // Phase waveforms
+  const phases = [
+    { key: 'C', color: COL.C, offset: +2*Math.PI/3 },
+    { key: 'A', color: COL.A, offset: 0 },
+    { key: 'B', color: COL.B, offset: -2*Math.PI/3 },
+  ];
+
+  const scaleY = (plotH / 2) / amp;
+
+  // Animated dashed flow lines UNDER main lines
+  if (state.dashFlow) {
+    const currents = phaseCurrents(angleMech, p, amp);
+    phases.forEach(ph => {
+      const val = currents[ph.key];
+      if (Math.abs(val) < 1) return;
+      const speed = val > 0 ? 1 : -1;
+      const dashOff = ((state.dashOffset * speed) % 20 + 20) % 20;
+
+      ctx.save();
+      ctx.strokeStyle = ph.color;
+      ctx.globalAlpha = state.theme === 'light' ? 0.18 : 0.28;
+      ctx.lineWidth = 4;
+      ctx.setLineDash([8, 12]);
+      ctx.lineDashOffset = -dashOff;
+      ctx.beginPath();
+      for (let px = 0; px <= plotW; px++) {
+        const deg = (px / plotW) * 360;
+        const e = deg * p * Math.PI / 180;
+        const y = cy - Math.sin(e + ph.offset) * amp * scaleY;
+        if (px === 0) ctx.moveTo(cx + px, y);
+        else ctx.lineTo(cx + px, y);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    });
+  }
+
+  // Main waveform lines
+  phases.forEach(ph => {
+    ctx.beginPath();
+    ctx.strokeStyle = ph.color;
+    ctx.lineWidth = 2.2;
+    ctx.globalAlpha = 1;
+    for (let px = 0; px <= plotW; px++) {
+      const deg = (px / plotW) * 360;
+      const e = deg * p * Math.PI / 180;
+      const y = cy - Math.sin(e + ph.offset) * amp * scaleY;
+      if (px === 0) ctx.moveTo(cx + px, y);
+      else ctx.lineTo(cx + px, y);
+    }
+    ctx.stroke();
+
+    // Phase labels
+    const labelX = cx + ((ph.offset === +2*Math.PI/3 ? 10 : ph.offset === 0 ? 130 : 260) / 360) * plotW;
+    ctx.fillStyle = T.labelBg;
+    roundRect(ctx, labelX - 28, MT + 4, 56, 18, 6);
+    ctx.fill();
+    ctx.fillStyle = ph.color;
+    ctx.font = 'bold 11px Barlow, sans-serif';
+    ctx.fillText('Phase ' + ph.key, labelX - 22, MT + 16);
+  });
+
+  // Cursor line
+  const cursorX = cx + (angleMech / 360) * plotW;
+  ctx.save();
+  ctx.strokeStyle = state.dashOffset % 40 < 20 ? T.cursorHi : T.cursorLo;
+  ctx.lineWidth = 1.8;
+  ctx.shadowColor = T.cursorHi;
+  ctx.shadowBlur = state.theme === 'light' ? 4 : 8;
+  ctx.beginPath();
+  ctx.moveTo(cursorX, MT);
+  ctx.lineTo(cursorX, MT + plotH);
+  ctx.stroke();
+  ctx.restore();
+
+  // Cursor dots on waveforms
+  const currents = phaseCurrents(angleMech, p, amp);
+  [['A', COL.A], ['B', COL.B], ['C', COL.C]].forEach(([k, col]) => {
+    const y = cy - currents[k] * scaleY;
+    ctx.beginPath();
+    ctx.arc(cursorX, y, 5, 0, Math.PI * 2);
+    ctx.fillStyle = col;
+    ctx.shadowColor = col;
+    ctx.shadowBlur = state.theme === 'light' ? 4 : 10;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  });
+
+  // Cursor angle label
+  ctx.fillStyle = T.cursorHi;
+  ctx.font = 'bold 11px Share Tech Mono, monospace';
+  const labelPos = angleMech > 320 ? cursorX - 36 : cursorX + 5;
+  ctx.fillText((angleMech).toFixed(1) + '°', labelPos, MT + 14);
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.arcTo(x + w, y, x + w, y + r, r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  ctx.lineTo(x + r, y + h);
+  ctx.arcTo(x, y + h, x, y + h - r, r);
+  ctx.lineTo(x, y + r);
+  ctx.arcTo(x, y, x + r, y, r);
+  ctx.closePath();
+}
+
+// ========== DRAW PHASOR / WINDING STAR ==========
+// Layout: A = upper-left terminal, B = upper-right terminal, C = bottom terminal
+// Matches motor Y-star schematic with inductor coil symbols on each arm
+function drawPhasor(currents) {
+  const W = phasorCanvas.width;   // 248
+  const H = phasorCanvas.height;  // 224
+  const ctx = phasorCtx;
+  const amp = state.amplitude;
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = THEME[state.theme].canvasBg;
+  ctx.fillRect(0, 0, W, H);
+
+  // ── Key positions ──────────────────────────────────────────────
+  const N = { x: 124, y: 108 };          // Neutral node (star center)
+  const T = {                              // Winding terminals
+    A: { x:  58, y:  46 },
+    B: { x: 190, y:  46 },
+    C: { x: 124, y: 178 },
+  };
+  const EXT = {                            // External wire endpoints (canvas edges)
+    A: { x:   6, y:  46 },
+    B: { x: 242, y:  46 },
+    C: { x: 124, y: 212 },
+  };
+  // Perpendicular label offset per phase (away from Y interior)
+  const LOFF = {
+    A: { x:  11, y: -15 },
+    B: { x: -11, y: -15 },
+    C: { x:  18, y:   0 },
+  };
+
+  // ── Draw each phase ────────────────────────────────────────────
+  ['A', 'B', 'C'].forEach(ph => {
+    const col  = COL[ph];
+    const val  = currents[ph];
+    const absFrac   = Math.min(Math.abs(val) / amp, 1);
+    const isActive  = Math.abs(val) > 1.5;
+    // positive = current flows TERMINAL → NEUTRAL (conventional motor notation)
+    const flowInward = val > 0;
+
+    const term = T[ph];
+    const ext  = EXT[ph];
+    const lOff = LOFF[ph];
+
+    // ── External wire ──
+    const wdx = term.x - ext.x;
+    const wdy = term.y - ext.y;
+    const wBaseAngle = Math.atan2(wdy, wdx);
+
+    // Animated dash on external wire
+    if (state.dashFlow && isActive) {
+      const spd  = flowInward ? 1 : -1;
+      const dOff = ((state.dashOffset * spd * 0.8) % 14 + 14) % 14;
+      ctx.save();
+      ctx.strokeStyle = col;
+      ctx.lineWidth   = 3.5;
+      ctx.globalAlpha = 0.38;
+      ctx.setLineDash([5, 9]);
+      ctx.lineDashOffset = -dOff;
+      ctx.beginPath();
+      ctx.moveTo(ext.x, ext.y);
+      ctx.lineTo(term.x, term.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+
+    // Solid external wire
+    ctx.save();
+    ctx.strokeStyle = col;
+    ctx.lineWidth   = 2.5;
+    ctx.globalAlpha = 0.55 + 0.45 * absFrac;
+    ctx.beginPath();
+    ctx.moveTo(ext.x, ext.y);
+    ctx.lineTo(term.x, term.y);
+    ctx.stroke();
+    ctx.restore();
+
+    // Triangular directional arrow on external wire (~40% from ext toward term)
+    if (isActive) {
+      const t = 0.40;
+      const ax = ext.x + wdx * t, ay = ext.y + wdy * t;
+      // flowInward: arrow points toward terminal (positive wire direction)
+      drawArrowhead(ctx, ax, ay, flowInward ? wBaseAngle : wBaseAngle + Math.PI, col, 7);
+    } else {
+      // zero: small hollow circle marker
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(ext.x + wdx*0.4, ext.y + wdy*0.4, 3.5, 0, Math.PI*2);
+      ctx.strokeStyle = col;
+      ctx.globalAlpha = 0.35;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Phase letter at external end
+    let lx = ext.x, ly = ext.y;
+    if (ph === 'A') { lx += 9;  ly -= 8; }
+    if (ph === 'B') { lx -= 9;  ly -= 8; }
+    if (ph === 'C') { lx += 12; }
+    ctx.save();
+    ctx.fillStyle = col;
+    ctx.font = 'bold 13px Share Tech Mono, monospace';
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(ph, lx, ly);
+    ctx.restore();
+
+    // Terminal node (junction point between external wire and coil)
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(term.x, term.y, 4, 0, Math.PI*2);
+    ctx.fillStyle   = col;
+    ctx.shadowColor = col;
+    ctx.shadowBlur  = isActive ? 9 * absFrac : 0;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.restore();
+
+    // ── Inductor / coil symbol from terminal to neutral ──
+    // Animated dash UNDER the coil symbol
+    if (state.dashFlow && isActive) {
+      const spd  = flowInward ? 1 : -1;
+      const dOff = ((state.dashOffset * spd * 0.8) % 12 + 12) % 12;
+      ctx.save();
+      ctx.strokeStyle    = col;
+      ctx.lineWidth      = 4;
+      ctx.globalAlpha    = 0.22;
+      ctx.setLineDash([4, 8]);
+      ctx.lineDashOffset = -dOff;
+      ctx.beginPath();
+      ctx.moveTo(term.x, term.y);
+      ctx.lineTo(N.x, N.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+
+    // Coil symbol itself
+    ctx.save();
+    ctx.strokeStyle = col;
+    ctx.lineWidth   = 2;
+    ctx.globalAlpha = 0.42 + 0.58 * absFrac;
+    drawInductor(ctx, term.x, term.y, N.x, N.y);
+    ctx.restore();
+
+    // Current direction arrow at midpoint of coil
+    if (isActive) {
+      const mx = (term.x + N.x) / 2;
+      const my = (term.y + N.y) / 2;
+      const cdx = N.x - term.x, cdy = N.y - term.y;
+      const cAngle = Math.atan2(cdy, cdx);
+      drawArrowhead(ctx, mx, my, flowInward ? cAngle : cAngle + Math.PI, col, 8);
+    }
+
+    // Current value label (offset perpendicular to coil, away from Y center)
+    {
+      const mx = (term.x + N.x) / 2 + lOff.x;
+      const my = (term.y + N.y) / 2 + lOff.y;
+      ctx.save();
+      ctx.fillStyle    = isActive ? THEME[state.theme].valueActive : THEME[state.theme].valueDim;
+      ctx.font         = isActive ? 'bold 10px Share Tech Mono,monospace' : '10px Share Tech Mono,monospace';
+      ctx.textAlign    = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(Math.abs(val).toFixed(0) + 'A', mx, my);
+      ctx.restore();
+    }
+  });
+
+  // ── Neutral node ───────────────────────────────────────────────
+  ctx.save();
+  // Outer ring
+  ctx.beginPath();
+  ctx.arc(N.x, N.y, 6, 0, Math.PI*2);
+  ctx.fillStyle = THEME[state.theme].nodeOuter;
+  ctx.fill();
+  ctx.strokeStyle = THEME[state.theme].nodeStroke;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  // Inner dot
+  ctx.beginPath();
+  ctx.arc(N.x, N.y, 3, 0, Math.PI*2);
+  ctx.fillStyle = THEME[state.theme].nodeDot;
+  ctx.fill();
+  ctx.restore();
+
+  // N label
+  ctx.save();
+  ctx.fillStyle    = THEME[state.theme].nodeLabel;
+  ctx.font         = '9px Barlow, sans-serif';
+  ctx.textAlign    = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('N', N.x + 9, N.y + 1);
+  ctx.restore();
+
+  // ── Angle info bar at bottom ───────────────────────────────────
+  const eDeg = (state.angle * state.polePairs) % 360;
+  ctx.save();
+  ctx.fillStyle    = THEME[state.theme].angleInfo;
+  ctx.font         = '9px Share Tech Mono, monospace';
+  ctx.textAlign    = 'center';
+  ctx.fillText(`θₘ = ${state.angle.toFixed(0)}°   θₑ = ${eDeg.toFixed(0)}°`, W / 2, H - 5);
+  ctx.restore();
+}
+
+// ── Inductor coil symbol drawn along a line from (x1,y1) to (x2,y2) ──────────
+// Bumps appear on the clockwise side of the direction x1→x2.
+// For A (going right-down): bumps face upper-right (away from Y interior) ✓
+// For B (going left-down):  bumps face upper-left  (away from Y interior) ✓
+// For C (going up):         bumps face right ✓
+function drawInductor(ctx, x1, y1, x2, y2) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const len = Math.sqrt(dx*dx + dy*dy);
+  if (len < 1) return;
+  const angle = Math.atan2(dy, dx);
+
+  const numBumps = 4;
+  const pad      = 7;
+  const coilLen  = len - 2 * pad;
+  const bumpW    = coilLen / numBumps;
+  const bumpR    = bumpW / 2;
+
+  ctx.save();
+  ctx.translate(x1, y1);
+  ctx.rotate(angle);
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(pad, 0);
+  for (let i = 0; i < numBumps; i++) {
+    const cx = pad + bumpR + i * bumpW;
+    // anticlockwise=false → arc goes clockwise in canvas → bumps in +y rotated direction
+    // = perpendicular clockwise-right of wire direction = outward from Y for A and B
+    ctx.arc(cx, 0, bumpR, Math.PI, 0, false);
+  }
+  ctx.lineTo(len, 0);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawArrowhead(ctx, x, y, angle, color, size) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+  ctx.beginPath();
+  ctx.moveTo(size, 0);
+  ctx.lineTo(-size * 0.6, -size * 0.5);
+  ctx.lineTo(-size * 0.6, size * 0.5);
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.restore();
+}
+
+// ========== UPDATE READOUT ==========
+function updateReadout(currents) {
+  const amp = state.amplitude;
+
+  const updatePhase = (key, valEl, barEl, arrEl) => {
+    const val = currents[key];
+    const col = COL[key];
+    const pct = Math.min(Math.abs(val) / amp * 100, 100);
+    valEl.textContent = (val >= 0 ? '+' : '') + val.toFixed(1) + ' A';
+    barEl.style.width = pct + '%';
+    barEl.style.background = `linear-gradient(90deg, ${col}88, ${col})`;
+    if (Math.abs(val) < 1) {
+      arrEl.textContent = '·';
+      arrEl.style.color = '#4a5470';
+    } else if (val > 0) {
+      arrEl.textContent = '▲';
+      arrEl.style.color = col;
+    } else {
+      arrEl.textContent = '▼';
+      arrEl.style.color = col;
+    }
+  };
+
+  updatePhase('A', valA, barA, arrA);
+  updatePhase('B', valB, barB, arrB);
+  updatePhase('C', valC, barC, arrC);
+
+  elecAngleEl.textContent = ((state.angle * state.polePairs) % 360).toFixed(1) + '°';
+  mechAngleEl.textContent = state.angle.toFixed(1) + '°';
+}
+
+// ========== FULL RENDER ==========
+function render() {
+  const currents = phaseCurrents(state.angle, state.polePairs, state.amplitude);
+  drawWave();
+  drawPhasor(currents);
+  updateReadout(currents);
+}
+
+// ========== ANIMATION LOOP ==========
+function animate() {
+  if (!state.animating) return;
+  state.angle = (state.angle + state.animSpeed) % 360;
+  state.dashOffset += 0.7;
+  angleSlider.value = state.angle.toFixed(1);
+  angleVal.textContent = parseFloat(state.angle).toFixed(1) + '°';
+  render();
+  state.animFrame = requestAnimationFrame(animate);
+}
+
+// ========== EVENTS ==========
+polePairsSlider.addEventListener('input', () => {
+  state.polePairs = parseInt(polePairsSlider.value);
+  poleLabel.textContent = 'p = ' + state.polePairs;
+  render();
+});
+
+amplitudeSlider.addEventListener('input', () => {
+  state.amplitude = parseInt(amplitudeSlider.value);
+  ampLabel.textContent = state.amplitude + ' A';
+  render();
+});
+
+angleSlider.addEventListener('input', () => {
+  state.angle = parseFloat(angleSlider.value);
+  angleVal.textContent = state.angle.toFixed(1) + '°';
+  if (!state.animating) render();
+});
+
+btnAnimate.addEventListener('click', () => {
+  state.animating = !state.animating;
+  btnAnimate.textContent = state.animating ? '⏸ Pause' : '▶ Animate';
+  btnAnimate.classList.toggle('active', state.animating);
+  if (state.animating) animate();
+  else cancelAnimationFrame(state.animFrame);
+});
+
+// ========== THEME TOGGLE ==========
+const btnTheme = document.getElementById('btnTheme');
+btnTheme.addEventListener('click', () => {
+  state.theme = state.theme === 'dark' ? 'light' : 'dark';
+  document.body.dataset.theme = state.theme === 'light' ? 'light' : '';
+  btnTheme.textContent = state.theme === 'dark' ? '🌙' : '☀️';
+  render();
+});
+
+btnDash.addEventListener('click', () => {
+  state.dashFlow = !state.dashFlow;
+  btnDash.textContent = 'Dash Flow: ' + (state.dashFlow ? 'ON' : 'OFF');
+  btnDash.classList.toggle('active', state.dashFlow);
+  render();
+});
+
+// Drag cursor on canvas
+let dragging = false;
+waveCanvas.addEventListener('mousedown', (e) => {
+  dragging = true;
+  if (state.animating) {
+    state.animating = false;
+    btnAnimate.textContent = '▶ Animate';
+    btnAnimate.classList.remove('active');
+    cancelAnimationFrame(state.animFrame);
+  }
+  updateCursorFromMouse(e);
+});
+window.addEventListener('mousemove', (e) => {
+  if (!dragging) return;
+  updateCursorFromMouse(e);
+});
+window.addEventListener('mouseup', () => { dragging = false; });
+
+// Touch support
+waveCanvas.addEventListener('touchstart', (e) => {
+  dragging = true;
+  if (state.animating) {
+    state.animating = false;
+    btnAnimate.textContent = '▶ Animate';
+    btnAnimate.classList.remove('active');
+    cancelAnimationFrame(state.animFrame);
+  }
+  updateCursorFromTouch(e);
+}, { passive: true });
+window.addEventListener('touchmove', (e) => {
+  if (!dragging) return;
+  updateCursorFromTouch(e);
+}, { passive: true });
+window.addEventListener('touchend', () => { dragging = false; });
+
+function updateCursorFromMouse(e) {
+  const rect = waveCanvas.getBoundingClientRect();
+  const ML = 52;
+  const plotW = waveCanvas.width - ML - 14;
+  const rawX = (e.clientX - rect.left) * (waveCanvas.width / rect.width);
+  const fraction = Math.max(0, Math.min(1, (rawX - ML) / plotW));
+  state.angle = fraction * 360;
+  angleSlider.value = state.angle.toFixed(1);
+  angleVal.textContent = state.angle.toFixed(1) + '°';
+  render();
+}
+
+function updateCursorFromTouch(e) {
+  const t = e.touches[0];
+  const rect = waveCanvas.getBoundingClientRect();
+  const ML = 52;
+  const plotW = waveCanvas.width - ML - 14;
+  const rawX = (t.clientX - rect.left) * (waveCanvas.width / rect.width);
+  const fraction = Math.max(0, Math.min(1, (rawX - ML) / plotW));
+  state.angle = fraction * 360;
+  angleSlider.value = state.angle.toFixed(1);
+  angleVal.textContent = state.angle.toFixed(1) + '°';
+  render();
+}
+
+// ========== SNAP BUTTONS ==========
+const SNAP_ANGLES = [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330, 360];
+const snapContainer = document.getElementById('snapButtons');
+let activeSnapBtn = null;
+
+SNAP_ANGLES.forEach(deg => {
+  const btn = document.createElement('button');
+  btn.className = 'snap-btn';
+  btn.textContent = deg + '°';
+  btn.dataset.angle = deg === 360 ? 0 : deg;
+  btn.addEventListener('click', () => {
+    // Stop animation
+    if (state.animating) {
+      state.animating = false;
+      btnAnimate.textContent = '▶ Animate';
+      btnAnimate.classList.remove('active');
+      cancelAnimationFrame(state.animFrame);
+    }
+    // Set angle
+    const target = parseFloat(btn.dataset.angle);
+    state.angle = target;
+    angleSlider.value = target.toFixed(1);
+    angleVal.textContent = target.toFixed(0) + '°';
+    // Highlight active snap button
+    if (activeSnapBtn) activeSnapBtn.classList.remove('snap-active');
+    btn.classList.add('snap-active');
+    activeSnapBtn = btn;
+    render();
+  });
+  snapContainer.appendChild(btn);
+});
+
+// Clear snap highlight whenever user drags or uses the main slider
+function clearSnapHighlight() {
+  if (activeSnapBtn) {
+    activeSnapBtn.classList.remove('snap-active');
+    activeSnapBtn = null;
+  }
+}
+
+angleSlider.addEventListener('input', clearSnapHighlight, { capture: true });
+waveCanvas.addEventListener('mousedown', clearSnapHighlight, { capture: true });
+waveCanvas.addEventListener('touchstart', clearSnapHighlight, { capture: true, passive: true });
+btnAnimate.addEventListener('click', clearSnapHighlight, { capture: true });
+
+// ========== INIT ==========
+window.addEventListener('resize', () => {
+  resizeWaveCanvas();
+  render();
+});
+
+// rAF ensures flex layout is computed before we read canvas dimensions
+requestAnimationFrame(() => {
+  resizeWaveCanvas();
+  if (state.animating) animate();
+  else render();
+});
+</script>
+</body>
+</html>
