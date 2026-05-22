@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PoC Budget Calculator — Valeo Service AR/VR Training 2025</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;background:#F5F4F0;color:#1C1C1E;padding:2rem 1.5rem;min-height:100vh}
+.wrap{max-width:960px;margin:0 auto}
+input[type=range]{-webkit-appearance:none;appearance:none;height:4px;border-radius:2px;outline:none;cursor:pointer;display:block;width:100%}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#fff;cursor:pointer;margin-top:-5px;box-shadow:0 0 0 2px currentColor,0 1px 4px rgba(0,0,0,0.18)}
+input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:transparent}
+input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:#fff;cursor:pointer;box-shadow:0 0 0 2px currentColor,0 1px 4px rgba(0,0,0,0.18);border:none}
+.avp-sl{color:#185FA5}.hl-sl{color:#0F6E56}.mq-sl{color:#BA7517}
+.reset-btn{font-size:10px;color:#9B9BA6;background:#F0EFEA;border:0.5px solid rgba(0,0,0,0.1);border-radius:4px;padding:2px 8px;cursor:pointer;line-height:1.7}
+.reset-btn:hover{background:#E8E6E1}
+.card{background:#fff;border-radius:12px;overflow:hidden}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:12px}
+@media(max-width:720px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div style="margin-bottom:1.25rem;padding-bottom:0.875rem;border-bottom:1px solid rgba(0,0,0,0.1)">
+    <p style="font-size:11px;color:#9B9BA6;margin:0 0 3px">Valeo Service · AR/VR training initiative · 2025</p>
+    <p style="font-size:22px;font-weight:500;color:#1C1C1E;margin:0 0 4px">PoC budget breakdown
+      <span style="font-size:10px;background:#EBF3FC;color:#0D4A87;padding:2px 8px;border-radius:5px;margin-left:8px;vertical-align:middle">interactive</span>
+    </p>
+    <p style="font-size:13px;color:#6B6B7A;margin:0">Drag the sliders to adjust any line item — totals and contingency update in real time</p>
+  </div>
+  <div class="grid" id="grid"></div>
+  <div style="background:#F8F7F3;border-radius:8px;padding:10px 14px;border:0.5px solid rgba(0,0,0,0.1)">
+    <p style="font-size:11px;color:#9B9BA6;margin:0;line-height:1.6">All figures are indicative estimates for PoC scope only (3–4 headsets, one 3D model, multi-mode EV thermal visualisation). Contingency auto-calculates as a percentage of adjusted item subtotals. Estimates exclude VAT, internal project management hours, and travel costs. Scaling to full deployment will require a separate business case.</p>
+  </div>
+</div>
+
+<script>
+var BUDGET = 50000;
+var fmt = function(n){ return '€' + Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g,','); };
+
+var SCENARIOS = [
+  {id:'avp',short:'AVP',name:'Apple Vision Pro',sub:'JigSpace · no-code authoring',
+   color:'#185FA5',bg:'#EBF3FC',tc:'#0D4A87',featured:true,cRate:0.10,
+   items:[
+     {id:'hw', label:'Hardware — 3× AVP (1 TB)',        v:12000,min:6000, max:24000,step:500},
+     {id:'eco',label:'macOS ecosystem infrastructure',   v:6000, min:2000, max:12000,step:250},
+     {id:'lic',label:'JigSpace Enterprise (1yr)',        v:3600, min:1200, max:7200, step:100},
+     {id:'art',label:'3D model adaptation & animation',  v:15000,min:5000, max:30000,step:500},
+     {id:'set',label:'Setup & documentation',            v:3000, min:500,  max:8000, step:250}
+   ]},
+  {id:'hl',short:'HL2',name:'Microsoft HoloLens 2',sub:'Dynamics 365 · Shift89 (NDA)',
+   color:'#0F6E56',bg:'#E1F5EE',tc:'#085041',featured:false,cRate:0.08,
+   items:[
+     {id:'hw', label:'Hardware — 3× HoloLens 2',         v:10500,min:5000, max:21000,step:500},
+     {id:'ws', label:'Development workstation (PC)',      v:2000, min:500,  max:5000, step:250},
+     {id:'lic',label:'Dynamics 365 Guides (1yr)',         v:2400, min:800,  max:6000, step:100},
+     {id:'dev',label:'Shift89 PoC content development',  v:28000,min:10000,max:55000,step:1000},
+     {id:'set',label:'Setup & integration',               v:3000, min:500,  max:8000, step:250}
+   ]},
+  {id:'mq',short:'MQ3',name:'Meta Quest 3',sub:'New supplier · to be identified',
+   color:'#BA7517',bg:'#FAEEDA',tc:'#412402',featured:false,cRate:0.10,
+   items:[
+     {id:'hw', label:'Hardware — 4× Meta Quest 3',        v:2000, min:500,  max:5000, step:200},
+     {id:'ws', label:'Development workstation (PC)',       v:2000, min:500,  max:5000, step:250},
+     {id:'sw', label:'Software / platform licenses',       v:2000, min:500,  max:6000, step:250},
+     {id:'sup',label:'Supplier selection & NDA',           v:3000, min:500,  max:8000, step:500},
+     {id:'dev',label:'Content development (new supplier)', v:30000,min:10000,max:60000,step:1000},
+     {id:'set',label:'Setup, testing & QA',                v:2000, min:500,  max:6000, step:250}
+   ]}
+];
+
+var state = {};
+SCENARIOS.forEach(function(s){
+  state[s.id] = {};
+  s.items.forEach(function(it){ state[s.id][it.id] = it.v; });
+});
+
+function getStatus(total){
+  var p = total/BUDGET;
+  if(p<=0.88) return {label:'Within budget',    bg:'#ECFDF5',color:'#065F46'};
+  if(p<=1.00) return {label:'Near budget limit', bg:'#FFFBEB',color:'#92400E'};
+  return              {label:'Over budget',       bg:'#FEF2F2',color:'#991B1B'};
+}
+
+function calcTotals(s){
+  var itemSum = s.items.reduce(function(acc,it){ return acc + state[s.id][it.id]; },0);
+  var cont = Math.round(itemSum * s.cRate);
+  return {itemSum:itemSum, cont:cont, total:itemSum+cont};
+}
+
+function buildCard(s){
+  var t = calcTotals(s);
+  var pct = Math.min(Math.round((t.total/BUDGET)*100),100);
+  var rem = BUDGET - t.total;
+  var st = getStatus(t.total);
+  var barColor = t.total > BUDGET ? '#991B1B' : s.color;
+
+  var rows = s.items.map(function(it,idx){
+    var val = state[s.id][it.id];
+    var tp = ((val-it.min)/(it.max-it.min))*100;
+    var bg = idx%2===0?'transparent':'#F8F7F3';
+    return '<div style="padding:6px 14px 9px;background:'+bg+'">' +
+      '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px">' +
+        '<span style="font-size:11px;color:#6B6B7A;line-height:1.4;padding-right:8px">'+it.label+'</span>' +
+        '<span id="amt-'+s.id+'-'+it.id+'" style="font-size:11px;font-weight:500;color:#1C1C1E;white-space:nowrap">'+fmt(val)+'</span>' +
+      '</div>' +
+      '<input type="range" class="'+s.id+'-sl" min="'+it.min+'" max="'+it.max+'" step="'+it.step+'" value="'+val+'" '+
+        'style="background:linear-gradient(to right,'+s.color+' '+tp+'%,#EDECEA '+tp+'%)" '+
+        'data-sid="'+s.id+'" data-iid="'+it.id+'" />' +
+    '</div>';
+  }).join('');
+
+  var cBg = s.items.length%2===0?'transparent':'#F8F7F3';
+
+  return '<div class="card" style="border:'+(s.featured?'2px solid '+s.color+'55':'0.5px solid rgba(0,0,0,0.1)')+'">'+
+
+    '<div style="padding:1rem 14px 0.875rem;border-bottom:0.5px solid rgba(0,0,0,0.06)">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'+
+        '<div style="display:flex;align-items:center;gap:8px">'+
+          '<div style="width:30px;height:30px;border-radius:50%;background:'+s.bg+';display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:500;color:'+s.tc+'">'+s.short+'</div>'+
+          '<div>'+
+            '<div style="font-size:13px;font-weight:500;color:#1C1C1E">'+s.name+'</div>'+
+            '<div style="font-size:10px;color:#9B9BA6;margin-top:1px">'+s.sub+'</div>'+
+          '</div>'+
+        '</div>'+
+        '<button class="reset-btn" data-reset="'+s.id+'">Reset</button>'+
+      '</div>'+
+      '<div id="total-'+s.id+'" style="font-size:24px;font-weight:500;color:#1C1C1E;margin-bottom:6px">'+fmt(t.total)+'</div>'+
+      '<div style="height:5px;background:#EDECEA;border-radius:3px;margin-bottom:5px;overflow:hidden">'+
+        '<div id="bar-'+s.id+'" style="height:100%;border-radius:3px;background:'+barColor+';width:'+pct+'%;transition:width 0.1s ease"></div>'+
+      '</div>'+
+      '<div style="display:flex;justify-content:space-between;margin-bottom:10px">'+
+        '<span id="pct-'+s.id+'" style="font-size:10px;color:#9B9BA6">'+pct+'% of €50,000</span>'+
+        '<span id="rem-'+s.id+'" style="font-size:10px;color:'+(rem>=0?'#9B9BA6':'#991B1B')+'">'+(rem>=0?fmt(rem)+' remaining':fmt(Math.abs(rem))+' over budget')+'</span>'+
+      '</div>'+
+      '<div id="badge-'+s.id+'" style="display:inline-block;font-size:10px;padding:3px 9px;border-radius:6px;background:'+st.bg+';color:'+st.color+'">'+st.label+'</div>'+
+    '</div>'+
+
+    rows+
+
+    '<div style="padding:6px 14px;background:'+cBg+';border-top:0.5px solid rgba(0,0,0,0.06)">'+
+      '<div style="display:flex;justify-content:space-between">'+
+        '<span style="font-size:11px;color:#9B9BA6">Contingency ('+Math.round(s.cRate*100)+'% · auto)</span>'+
+        '<span id="cont-'+s.id+'" style="font-size:11px;font-weight:500;color:#9B9BA6">'+fmt(t.cont)+'</span>'+
+      '</div>'+
+    '</div>'+
+
+    '<div style="padding:9px 14px;border-top:0.5px solid rgba(0,0,0,0.09);display:flex;justify-content:space-between">'+
+      '<span style="font-size:13px;font-weight:500;color:#1C1C1E">Total</span>'+
+      '<span id="total2-'+s.id+'" style="font-size:13px;font-weight:500;color:'+(t.total>BUDGET?'#991B1B':'#1C1C1E')+'">'+fmt(t.total)+'</span>'+
+    '</div>'+
+
+  '</div>';
+}
+
+function render(){
+  var grid = document.getElementById('grid');
+  grid.innerHTML = SCENARIOS.map(buildCard).join('');
+
+  grid.querySelectorAll('input[type=range]').forEach(function(el){
+    el.addEventListener('input', function(){
+      var sid = this.dataset.sid, iid = this.dataset.iid;
+      state[sid][iid] = parseInt(this.value);
+      var s = SCENARIOS.find(function(x){ return x.id===sid; });
+      var it = s.items.find(function(x){ return x.id===iid; });
+      var tp = ((parseInt(this.value)-it.min)/(it.max-it.min))*100;
+      this.style.background = 'linear-gradient(to right,'+s.color+' '+tp+'%,#EDECEA '+tp+'%)';
+      document.getElementById('amt-'+sid+'-'+iid).textContent = fmt(parseInt(this.value));
+      var t = calcTotals(s);
+      var pct = Math.min(Math.round((t.total/BUDGET)*100),100);
+      var rem = BUDGET - t.total;
+      var st = getStatus(t.total);
+      var barColor = t.total>BUDGET?'#991B1B':s.color;
+      document.getElementById('total-'+sid).textContent  = fmt(t.total);
+      document.getElementById('total2-'+sid).textContent = fmt(t.total);
+      document.getElementById('total2-'+sid).style.color = t.total>BUDGET?'#991B1B':'#1C1C1E';
+      document.getElementById('bar-'+sid).style.width      = pct+'%';
+      document.getElementById('bar-'+sid).style.background = barColor;
+      document.getElementById('pct-'+sid).textContent   = pct+'% of €50,000';
+      document.getElementById('rem-'+sid).textContent   = rem>=0?fmt(rem)+' remaining':fmt(Math.abs(rem))+' over budget';
+      document.getElementById('rem-'+sid).style.color   = rem>=0?'#9B9BA6':'#991B1B';
+      document.getElementById('cont-'+sid).textContent  = fmt(t.cont);
+      document.getElementById('badge-'+sid).textContent       = st.label;
+      document.getElementById('badge-'+sid).style.background  = st.bg;
+      document.getElementById('badge-'+sid).style.color       = st.color;
+    });
+  });
+
+  grid.querySelectorAll('[data-reset]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var sid = this.dataset.reset;
+      var s = SCENARIOS.find(function(x){ return x.id===sid; });
+      s.items.forEach(function(it){ state[sid][it.id] = it.v; });
+      render();
+    });
+  });
+}
+
+render();
+</script>
+</body>
+</html>
