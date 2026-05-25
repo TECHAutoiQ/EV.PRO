@@ -1,0 +1,8 @@
+<iframe
+	class="js-jig-viewer" src="https://viewer.jig.space/?jig=pO8WADmK&step=1&sbox=1&autoload=1"
+	width="640" height="360" allow="fullscreen; xr-spatial-tracking;" allowfullscreen="" frameborder="0"
+></iframe>
+<p style="color: #000;"><a href="https://link.jig.space/tPjSLbeJRwb?utm_medium=embed&utm_campaign=sharing" target="_blank" style="color: #304DE4;">Nissan Leaf - Battery Jig in augmented reality</a> powered by <a href="https://www.jig.com?utm_medium=embed&utm_campaign=sharing&utm_content=pO8WADmK" target="_blank" style="color: #304DE4;">JigSpace</a></p>
+<!-- Place below scripts after the last iframe or just before </body> tag only once -->
+<script src="https://viewer.jig.space/public/iframe/script.js"></script>
+<script>document.addEventListener('DOMContentLoaded', () => new JigWebViewer())</script>
