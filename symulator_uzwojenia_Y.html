@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Symulator uzwojenia Y - rezystancja cewek</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --purple:#492365; --gray:#4a494d; --rush:#70569e; --lilac:#a595c4; --thistle:#cbc3dc;
+  --cloud:#f3eff6; --grape:#814d9d; --balm:#a275b3; --lav:#d3c2df; --snow:#f3f0f4;
+  --teal:#2dbbc4; --fern:#91c74f; --sun:#efad21; --red:#f16357;
+  --cU:#2dbbc4; --cV:#efad21; --cW:#91c74f;
+  --line:#e2dbea; --ink:#2a2530;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);background:var(--snow);line-height:1.45;font-size:15px}
+.mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
+header{background:var(--purple);color:#fff;padding:22px 28px 20px}
+.byline{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;font-size:13.5px;color:var(--thistle);margin:0 0 12px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,.18)}
+.byline .by{color:#fff;font-weight:600;font-size:14.5px;letter-spacing:.01em}
+.byline .sep{color:var(--lilac)}
+.byline a{color:#fff;text-decoration:underline;text-underline-offset:3px;font-family:"IBM Plex Mono",monospace;font-size:13px}
+header h1{margin:0;font-size:22px;font-weight:600;letter-spacing:-.01em}
+header p{margin:6px 0 0;color:var(--thistle);font-size:14px;max-width:820px}
+main{max-width:1320px;margin:0 auto;padding:20px 20px 40px;display:grid;grid-template-columns:minmax(330px,430px) 1fr;gap:18px;align-items:start}
+@media(max-width:980px){main{grid-template-columns:1fr}}
+.card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:16px 18px}
+.card + .card{margin-top:18px}
+h2{font-size:12px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--rush);margin:0 0 12px}
+h2 small{font-weight:500;letter-spacing:0;text-transform:none;color:var(--gray);font-size:12.5px;margin-left:6px}
+.presets{display:flex;flex-wrap:wrap;gap:6px}
+button{font:inherit;cursor:pointer}
+.chip{border:1px solid var(--thistle);background:var(--cloud);color:var(--purple);border-radius:999px;padding:5px 11px;font-size:12.5px;font-weight:500}
+.chip:hover{background:var(--lav)}
+.chip.on{background:var(--purple);border-color:var(--purple);color:#fff}
+.row{display:grid;grid-template-columns:54px 1fr 104px;gap:10px;align-items:center;padding:7px 0}
+.row + .row{border-top:1px dashed var(--line)}
+.tag{font-weight:600;font-size:14px;display:flex;align-items:center;gap:6px}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block;flex:none}
+.pairdot{width:16px;height:10px;border-radius:5px;flex:none}
+input[type=range]{width:100%;accent-color:var(--rush);height:22px;margin:0}
+input[type=number]{width:100%;font:inherit;font-family:"IBM Plex Mono",monospace;font-size:13.5px;padding:6px 26px 6px 8px;border:1px solid var(--thistle);border-radius:6px;background:#fff;color:var(--ink);text-align:right}
+input[type=number]:focus{outline:2px solid var(--lilac);border-color:var(--rush)}
+.unit{position:relative}
+.unit::after{content:attr(data-u);position:absolute;right:7px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--gray);pointer-events:none}
+.hint{font-size:12.5px;color:var(--gray);margin:10px 0 0}
+.calc{background:var(--cloud);border-radius:8px;padding:12px 14px;font-size:13px;line-height:1.75;overflow-x:auto;white-space:pre}
+.calc b{color:var(--purple);font-weight:600}
+.calc .ok{color:#4a7d1c}.calc .bad{color:#c43a2e;font-weight:600}
+.alert{display:none;margin-top:12px;border-left:4px solid var(--red);background:#fdeceb;padding:10px 12px;border-radius:0 6px 6px 0;font-size:13px}
+.alert.show{display:block}
+.grid2{display:grid;grid-template-columns:1.15fr 1fr;gap:18px}
+@media(max-width:1180px){.grid2{grid-template-columns:1fr}}
+svg{display:block;width:100%;height:auto}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+@media(max-width:720px){.kpis{grid-template-columns:repeat(2,1fr)}}
+.kpi{background:var(--cloud);border-radius:8px;padding:10px 12px;border-top:3px solid var(--lilac)}
+.kpi .l{font-size:11.5px;color:var(--gray);line-height:1.3;min-height:30px}
+.kpi .v{font-family:"IBM Plex Mono",monospace;font-size:21px;font-weight:600;color:var(--purple);margin-top:2px}
+.kpi .s{font-size:11.5px;color:var(--gray)}
+.kpi.warn{border-top-color:var(--sun)}.kpi.warn .v{color:#a36d00}
+.kpi.fail{border-top-color:var(--red)}.kpi.fail .v{color:#c43a2e}
+.kpi.pass{border-top-color:var(--fern)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:6px 8px;text-align:right;border-bottom:1px solid var(--line)}
+th{font-weight:600;color:var(--gray);font-size:12px;vertical-align:bottom}
+th:first-child,td:first-child{text-align:left}
+td.mono{font-size:13px}
+.bar{height:8px;border-radius:4px;background:var(--cloud);overflow:hidden;min-width:70px}
+.bar i{display:block;height:100%;border-radius:4px}
+.verdict{margin-top:12px;padding:10px 12px;border-radius:8px;font-size:13.5px;background:var(--cloud);border-left:4px solid var(--lilac)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--gray);margin-top:8px}
+.legend span{display:flex;align-items:center;gap:5px}
+.inline{display:grid;grid-template-columns:1fr 112px;gap:8px 10px;align-items:center;font-size:13px}
+.inline label{color:var(--gray)}
+.inline .unit{width:112px}
+details{margin-top:10px;font-size:13px;color:var(--gray)}
+summary{cursor:pointer;color:var(--rush);font-weight:500}
+</style>
+</head>
+<body>
+<header>
+  <div class="byline"><span class="by">Created by Krzysztof Szabłowski</span><span class="sep">|</span><span>Valeo Service TECH.Academy+</span><span class="sep">|</span><a href="mailto:krzysztof.szablowski@valeo.com">krzysztof.szablowski@valeo.com</a></div>
+  <h1>Symulator uzwojenia Y - od pomiaru międzyfazowego do pojedynczej cewki</h1>
+  <p>Wpisz trzy wyniki z miliomomierza (U-V, V-W, W-U) albo przesuwaj suwaki par i cewek. Schemat, obliczenia i wpływ na silnik przeliczają się na bieżąco.</p>
+</header>
+
+<main>
+<section>
+  <div class="card">
+    <h2>Scenariusze</h2>
+    <div class="presets" id="presets"></div>
+  </div>
+
+  <div class="card">
+    <h2>1. Pomiary międzyfazowe <small>to, co pokazuje miernik</small></h2>
+    <div id="pairRows"></div>
+    <p class="hint">Zmiana jednej pary przy niezmienionych dwóch pozostałych przelicza wszystkie trzy cewki - obserwuj schemat.</p>
+    <div class="alert" id="alert"></div>
+  </div>
+
+  <div class="card">
+    <h2>2. Pojedyncze cewki <small>to, czego miernik nie pokazuje</small></h2>
+    <div id="coilRows"></div>
+    <p class="hint">Zmiana jednej cewki zmienia dokładnie dwa pomiary międzyfazowe - te, w których ta cewka uczestniczy.</p>
+  </div>
+
+  <div class="card">
+    <h2>Warunki</h2>
+    <div class="inline">
+      <label for="temp">Temperatura pomiaru</label>
+      <span class="unit" data-u="°C"><input type="number" id="temp" value="20" step="0.1" min="-40" max="150"></span>
+      <label for="lim">Limit niesymetrii cewek</label>
+      <span class="unit" data-u="%"><input type="number" id="lim" value="2" step="0.5" min="0.5" max="20"></span>
+      <label for="vph">Napięcie fazowe (ampl.)</label>
+      <span class="unit" data-u="V"><input type="number" id="vph" value="1.975" step="0.05" min="0.01" max="500"></span>
+      <label for="iph">Prąd fazowy (ampl.)</label>
+      <span class="unit" data-u="A"><input type="number" id="iph" value="200" step="5" min="1" max="20000"></span>
+    </div>
+    <p class="hint" id="vinote"></p>
+    <p class="hint">Limit 2% to wartość umowna do ćwiczeń - w warsztacie obowiązuje specyfikacja producenta pojazdu.</p>
+  </div>
+</section>
+
+<section>
+  <div class="card">
+    <div class="kpis" id="kpis"></div>
+    <div class="verdict" id="verdict"></div>
+  </div>
+
+  <div class="card">
+    <div class="grid2">
+      <div>
+        <h2>Uzwojenie w gwieździe</h2>
+        <svg id="star" viewBox="44 62 472 404" role="img" aria-label="Schemat uzwojenia w gwieździe"></svg>
+        <div class="legend">
+          <span><i class="dot" style="background:var(--teal)"></i>poniżej średniej</span>
+          <span><i class="dot" style="background:var(--lilac)"></i>w normie</span>
+          <span><i class="dot" style="background:var(--red)"></i>powyżej średniej</span>
+          <span>grubość linii = prąd w cewce</span>
+          <span><i class="dot" style="background:var(--red);width:7px;height:7px"></i>czerwony punkt przy N = przesunięcie punktu neutralnego</span>
+        </div>
+      </div>
+      <div>
+        <h2>Obliczenie krok po kroku</h2>
+        <div class="calc mono" id="calc"></div>
+        <details>
+          <summary>Dlaczego to działa</summary>
+          <p>W gwieździe każdy pomiar między zaciskami to dwie cewki połączone szeregowo przez punkt neutralny. Po zsumowaniu trzech pomiarów każda cewka występuje dokładnie dwa razy, więc połowa sumy to łączna rezystancja wszystkich trzech. Odejmując od niej pomiar pary, w której danej cewki nie ma, zostaje sama ta cewka.</p>
+        </details>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="grid2">
+      <div>
+        <h2>Wpływ na silnik <small>postój i niskie obroty</small></h2>
+        <table id="tbl"></table>
+        <p class="hint">Model czysto rezystancyjny z nieuziemionym punktem neutralnym. Dwa przypadki: przy zasilaniu symetrycznym napięciem prądy się rozjeżdżają, a punkt neutralny przesuwa się w stronę cewki o najniższej rezystancji. Przy regulacji prądu (FOC) falownik wyrównuje prądy, więc straty rozkładają się proporcjonalnie do rezystancji - cewka o najwyższej rezystancji grzeje się najmocniej. Przy wyższych obrotach dominuje reaktancja indukcyjna i wpływ niesymetrii rezystancji na prądy maleje.</p>
+      </div>
+      <div>
+        <h2>Wektor przestrzenny prądu <small>płaszczyzna α-β</small></h2>
+        <svg id="locus" viewBox="0 0 320 320" role="img" aria-label="Trajektoria wektora przestrzennego prądu"></svg>
+        <div class="legend">
+          <span><i class="pairdot" style="background:var(--thistle)"></i>silnik symetryczny (okrąg)</span>
+          <span><i class="pairdot" style="background:var(--grape)"></i>stan bieżący</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Kompensacja temperaturowa do 20°C <small>α<sub>Cu</sub> = 0,00393 1/K</small></h2>
+    <table id="ttbl"></table>
+    <p class="hint" id="tnote"></p>
+  </div>
+</section>
+</main>
+
+<script>
+(function(){
+"use strict";
+const ALPHA = 0.00393;
+const PH = ["U","V","W"];
+const COL = {U:"#2dbbc4", V:"#efad21", W:"#91c74f"};
+const PAIRS = [
+  {k:"UV", a:"U", b:"V", miss:"W"},
+  {k:"VW", a:"V", b:"W", miss:"U"},
+  {k:"WU", a:"W", b:"U", miss:"V"}
+];
+// stan: źródłem prawdy są rezystancje cewek [mΩ]
+const st = {U:9.706, V:10.014, W:9.911};
+const PRESETS = [
+  {n:"Przykład z MT03A", c:{U:9.706, V:10.014, W:9.911}},
+  {n:"Silnik symetryczny", c:{U:9.877, V:9.877, W:9.877}},
+  {n:"Zwarcie zwojowe w fazie V", c:{U:9.877, V:8.6, W:9.877}},
+  {n:"Podwyższona rezystancja w fazie W", c:{U:9.877, V:9.877, W:12.4}},
+  {n:"Pomiar niemożliwy", p:{UV:19.7, VW:8.0, WU:30.0}}
+];
+let activePreset = 0;
+let master = "I"; // wielkość edytowana jako ostatnia pozostaje stała przy zmianie rezystancji
+
+const $ = id => document.getElementById(id);
+const f = (x,d=3) => (isFinite(x)? x.toFixed(d).replace(".",",") : "-");
+const pct = (x,d=2) => f(x,d)+"%";
+const NS = "http://www.w3.org/2000/svg";
+function el(tag, attrs, text){
+  const e = document.createElementNS(NS, tag);
+  for(const k in attrs) e.setAttribute(k, attrs[k]);
+  if(text!==undefined) e.textContent = text;
+  return e;
+}
+
+function pairsFromCoils(c){ return {UV:c.U+c.V, VW:c.V+c.W, WU:c.W+c.U}; }
+function coilsFromPairs(p){
+  const S = (p.UV+p.VW+p.WU)/2;
+  return {U:S-p.VW, V:S-p.WU, W:S-p.UV};
+}
+function asym(vals){
+  const m = (vals[0]+vals[1]+vals[2])/3;
+  const maxDev = Math.max(...vals.map(v=>Math.abs(v-m)));
+  return {mean:m, dev:maxDev/m*100, spread:(Math.max(...vals)-Math.min(...vals))/m*100};
+}
+
+// --- budowa kontrolek ---
+function buildRows(){
+  const pr = $("pairRows"), cr = $("coilRows");
+  PAIRS.forEach(P=>{
+    const d = document.createElement("div"); d.className="row";
+    d.innerHTML = `<div class="tag"><i class="pairdot" style="background:linear-gradient(90deg,${COL[P.a]} 50%,${COL[P.b]} 50%)"></i>${P.a}-${P.b}</div>
+      <input type="range" id="ps_${P.k}" min="2" max="40" step="0.005" aria-label="Suwak pomiaru ${P.a}-${P.b}">
+      <span class="unit" data-u="mΩ"><input type="number" id="pn_${P.k}" step="0.001" min="0" aria-label="Pomiar ${P.a}-${P.b} w miliomach"></span>`;
+    pr.appendChild(d);
+  });
+  PH.forEach(k=>{
+    const d = document.createElement("div"); d.className="row";
+    d.innerHTML = `<div class="tag"><i class="dot" style="background:${COL[k]}"></i><span>R<sub>${k}</sub></span></div>
+      <input type="range" id="cs_${k}" min="1" max="20" step="0.005" aria-label="Suwak cewki ${k}">
+      <span class="unit" data-u="mΩ"><input type="number" id="cn_${k}" step="0.001" min="0" aria-label="Rezystancja cewki ${k} w miliomach"></span>`;
+    cr.appendChild(d);
+  });
+  PAIRS.forEach(P=>{
+    const h = src => e => {
+      const v = parseFloat(e.target.value); if(!isFinite(v)) return;
+      const p = pairsFromCoils(st); p[P.k] = v;
+      Object.assign(st, coilsFromPairs(p)); activePreset = -1; render(src);
+    };
+    $("ps_"+P.k).addEventListener("input", h("ps_"+P.k));
+    $("pn_"+P.k).addEventListener("input", h("pn_"+P.k));
+  });
+  PH.forEach(k=>{
+    const h = src => e => {
+      const v = parseFloat(e.target.value); if(!isFinite(v)) return;
+      st[k] = v; activePreset = -1; render(src);
+    };
+    $("cs_"+k).addEventListener("input", h("cs_"+k));
+    $("cn_"+k).addEventListener("input", h("cn_"+k));
+  });
+  ["temp","lim"].forEach(id=>$(id).addEventListener("input", ()=>render(id)));
+  $("vph").addEventListener("input", ()=>{ master="V"; render("vph"); });
+  $("iph").addEventListener("input", ()=>{ master="I"; render("iph"); });
+  const ps = $("presets");
+  PRESETS.forEach((P,i)=>{
+    const b = document.createElement("button"); b.className="chip"; b.type="button"; b.textContent=P.n;
+    b.addEventListener("click", ()=>{
+      Object.assign(st, P.c ? P.c : coilsFromPairs(P.p)); activePreset = i; render();
+    });
+    ps.appendChild(b);
+  });
+}
+
+// --- model elektryczny: symetryczne napięcie, nieuziemiony punkt neutralny, tylko R ---
+function electrical(c, V){
+  const R = PH.map(k=>c[k]/1000); // Ω
+  if(R.some(r=>!(r>0))) return null;
+  const Y = R.reduce((s,r)=>s+1/r,0);
+  const ang = [0,-2*Math.PI/3, 2*Math.PI/3];
+  // fazory
+  let nre=0, nim=0;
+  ang.forEach((a,i)=>{ nre += V*Math.cos(a)/R[i]; nim += V*Math.sin(a)/R[i]; });
+  const vn = {re:nre/Y, im:nim/Y};
+  const I = ang.map((a,i)=>Math.hypot(V*Math.cos(a)-vn.re, V*Math.sin(a)-vn.im)/R[i]);
+  const P = I.map((x,i)=>x*x/2*R[i]); // moc średnia z amplitudy
+  // trajektoria wektora przestrzennego
+  const pts=[];
+  for(let d=0; d<=360; d+=3){
+    const th = d*Math.PI/180;
+    const v = ang.map(a=>V*Math.cos(th+a));
+    const n = v.reduce((s,x,i)=>s+x/R[i],0)/Y;
+    const i3 = v.map((x,i)=>(x-n)/R[i]);
+    pts.push([ (2/3)*(i3[0]-i3[1]/2-i3[2]/2), (2/3)*(Math.sqrt(3)/2)*(i3[1]-i3[2]) ]);
+  }
+  const Iref = V/((R[0]+R[1]+R[2])/3);
+  const Pf = R.map(r=>Iref*Iref/2*r); // regulacja prądu: równe prądy
+  return {I, P, Pf, Iref, vn:Math.hypot(vn.re,vn.im), vnVec:vn, pts};
+}
+
+// --- rysowanie schematu ---
+function coilPath(x1,y1,x2,y2,loops){
+  const dx=x2-x1, dy=y2-y1, L=Math.hypot(dx,dy), ux=dx/L, uy=dy/L;
+  const a=0.22, b=0.80, step=(b-a)*L/loops, r=step/2;
+  let d=`M${x1},${y1} L${(x1+ux*a*L).toFixed(1)},${(y1+uy*a*L).toFixed(1)}`;
+  for(let i=1;i<=loops;i++){
+    const t=a*L+step*i;
+    d+=` A${r.toFixed(1)},${r.toFixed(1)} 0 0 1 ${(x1+ux*t).toFixed(1)},${(y1+uy*t).toFixed(1)}`;
+  }
+  return d+` L${x2},${y2}`;
+}
+function devColor(dev, lim){
+  // dev w % względem średniej, znak zachowany
+  const t = Math.max(-1, Math.min(1, dev/(lim*1.5)));
+  const mix=(a,b,k)=>a.map((v,i)=>Math.round(v+(b[i]-v)*k));
+  const lil=[165,149,196], teal=[45,187,196], red=[241,99,87];
+  const c = t>=0 ? mix(lil,red,t) : mix(lil,teal,-t);
+  return `rgb(${c[0]},${c[1]},${c[2]})`;
+}
+function drawStar(c, p, A, E, lim, valid){
+  const s=$("star"); s.textContent="";
+  const N={x:280,y:270}, Rr=170;
+  const T={U:{x:N.x, y:N.y-Rr}, V:{x:N.x+Rr*Math.cos(Math.PI/6), y:N.y+Rr*Math.sin(Math.PI/6)}, W:{x:N.x-Rr*Math.cos(Math.PI/6), y:N.y+Rr*Math.sin(Math.PI/6)}};
+  // łuki pomiarów międzyfazowych
+  PAIRS.forEach(P=>{
+    const a=T[P.a], b=T[P.b];
+    const mx=(a.x+b.x)/2, my=(a.y+b.y)/2;
+    const ox=mx-N.x, oy=my-N.y, ol=Math.hypot(ox,oy);
+    const cx=mx+ox/ol*120, cy=my+oy/ol*120;
+    s.appendChild(el("path",{d:`M${a.x},${a.y} Q${cx},${cy} ${b.x},${b.y}`, fill:"none", stroke:"#cbc3dc","stroke-width":1.5,"stroke-dasharray":"5 4"}));
+    const lx=mx+ox/ol*(P.k==='VW'?72:92), ly=my+oy/ol*(P.k==='VW'?72:92);
+    s.appendChild(el("rect",{x:lx-52,y:ly-19,width:104,height:38,rx:6,fill:"#fff",stroke:"#cbc3dc"}));
+    s.appendChild(el("text",{x:lx,y:ly-4,"text-anchor":"middle","font-size":11,fill:"#4a494d","font-family":"IBM Plex Sans,sans-serif"},`pomiar ${P.a}-${P.b}`));
+    s.appendChild(el("text",{x:lx,y:ly+12,"text-anchor":"middle","font-size":13,"font-weight":600,fill:"#492365","font-family":"IBM Plex Mono,monospace"},f(p[P.k])+" mΩ"));
+  });
+  const Imax = E ? Math.max(...E.I) : 1;
+  PH.forEach((k,i)=>{
+    const dev=(c[k]-A.mean)/A.mean*100;
+    const ok = c[k]>0;
+    const w = E ? 2.5+4*Math.pow(E.I[i]/Imax,3) : 3.5;
+    s.appendChild(el("path",{d:coilPath(N.x,N.y,T[k].x,T[k].y,5), fill:"none", stroke: ok?devColor(dev,lim):"#f16357", "stroke-width":w.toFixed(1), "stroke-linecap":"round","stroke-linejoin":"round","stroke-dasharray": ok?"none":"3 7"}));
+    s.appendChild(el("circle",{cx:T[k].x,cy:T[k].y,r:15,fill:COL[k],stroke:"#fff","stroke-width":3}));
+    s.appendChild(el("text",{x:T[k].x,y:T[k].y+5,"text-anchor":"middle","font-size":15,"font-weight":700,fill:"#fff","font-family":"IBM Plex Sans,sans-serif"},k));
+    // etykieta cewki
+    const pos = k==="U"?{x:352,y:128}: k==="V"?{x:386,y:262}:{x:174,y:262};
+    const lx=pos.x, ly=pos.y;
+    s.appendChild(el("rect",{x:lx-50,y:ly-21,width:100,height:42,rx:6,fill:"#492365"}));
+    s.appendChild(el("text",{x:lx,y:ly-4,"text-anchor":"middle","font-size":13.5,"font-weight":600,fill:"#fff","font-family":"IBM Plex Mono,monospace"},`R${k} ${f(c[k])}`));
+    s.appendChild(el("text",{x:lx,y:ly+13,"text-anchor":"middle","font-size":11.5,fill:"#d3c2df","font-family":"IBM Plex Mono,monospace"}, (dev>=0?"+":"")+f(dev,2)+"% od śr."));
+  });
+  // idealny punkt neutralny i jego przesunięcie
+  s.appendChild(el("circle",{cx:N.x,cy:N.y,r:7,fill:"#fff",stroke:"#492365","stroke-width":2.5}));
+  if(E && valid){
+    const V=parseFloat($("vph").value)||1;
+    const sc=Rr*0.9/V; // przesunięcie w skali napięcia fazowego
+    // odwzorowanie fazora: faza U (kąt 0) w górę, V (-120°) w prawo w dół
+    const px=N.x - E.vnVec.im*sc, py=N.y - E.vnVec.re*sc;
+    if(E.vn/V>0.002){
+      s.appendChild(el("line",{x1:N.x,y1:N.y,x2:px,y2:py,stroke:"#f16357","stroke-width":2}));
+      s.appendChild(el("circle",{cx:px,cy:py,r:5,fill:"#f16357"}));
+    }
+  }
+  s.appendChild(el("text",{x:N.x+14,y:N.y+26,"font-size":11.5,fill:"#4a494d","font-family":"IBM Plex Sans,sans-serif"},"N"));
+}
+
+function drawLocus(E, Eref){
+  const s=$("locus"); s.textContent="";
+  const C=160, R=118;
+  for(const r of [0.5,1]) s.appendChild(el("circle",{cx:C,cy:C,r:R*r,fill:"none",stroke:"#f3eff6","stroke-width":1}));
+  s.appendChild(el("line",{x1:18,y1:C,x2:302,y2:C,stroke:"#e2dbea"}));
+  s.appendChild(el("line",{x1:C,y1:18,x2:C,y2:302,stroke:"#e2dbea"}));
+  s.appendChild(el("text",{x:304,y:C+15,"text-anchor":"end","font-size":12,fill:"#4a494d","font-family":"IBM Plex Mono,monospace"},"α"));
+  s.appendChild(el("text",{x:C+7,y:26,"font-size":12,fill:"#4a494d","font-family":"IBM Plex Mono,monospace"},"β"));
+  if(!E||!Eref) { s.appendChild(el("text",{x:C,y:C-8,"text-anchor":"middle","font-size":13,fill:"#c43a2e","font-family":"IBM Plex Sans,sans-serif"},"brak rozwiązania fizycznego")); return; }
+  const m = Math.max(...E.pts.map(p=>Math.hypot(p[0],p[1])), ...Eref.pts.map(p=>Math.hypot(p[0],p[1])));
+  const k = R/m;
+  const poly = pts => pts.map(p=>(C+p[0]*k).toFixed(1)+","+(C-p[1]*k).toFixed(1)).join(" ");
+  s.appendChild(el("polyline",{points:poly(Eref.pts),fill:"none",stroke:"#cbc3dc","stroke-width":2,"stroke-dasharray":"4 4"}));
+  s.appendChild(el("polyline",{points:poly(E.pts),fill:"rgba(129,77,157,.10)",stroke:"#814d9d","stroke-width":2.5}));
+  const rs=E.pts.map(p=>Math.hypot(p[0],p[1]));
+  const ecc=(Math.max(...rs)-Math.min(...rs))/((Math.max(...rs)+Math.min(...rs))/2)*100;
+  s.appendChild(el("text",{x:C,y:312,"text-anchor":"middle","font-size":12,fill:"#492365","font-family":"IBM Plex Mono,monospace"},"odkształcenie okręgu: "+pct(ecc)));
+}
+
+// --- render ---
+function setVal(id, v, skip){ if(id!==skip){ const e=$(id); if(document.activeElement!==e || e.type==="range") e.value = v; } }
+function render(skip){
+  const c = st, p = pairsFromCoils(c);
+  PAIRS.forEach(P=>{ setVal("ps_"+P.k, p[P.k], skip); setVal("pn_"+P.k, p[P.k].toFixed(3), skip); });
+  PH.forEach(k=>{ setVal("cs_"+k, c[k], skip); setVal("cn_"+k, c[k].toFixed(3), skip); });
+  [...$("presets").children].forEach((b,i)=>b.classList.toggle("on", i===activePreset));
+
+  const lim = Math.max(0.1, parseFloat($("lim").value)||2);
+  const RmOhm = (c.U+c.V+c.W)/3000;
+  let V, Iset;
+  if(master==="I"){
+    Iset = Math.max(0.1, parseFloat($("iph").value)||200);
+    V = RmOhm>0 ? Math.max(0.001, Iset*RmOhm) : 2;
+    $("vph").value = V.toFixed(3);
+  } else {
+    V = Math.max(0.001, parseFloat($("vph").value)||2);
+    Iset = RmOhm>0 ? V/RmOhm : NaN;
+    if(isFinite(Iset)) $("iph").value = Iset.toFixed(1);
+  }
+  $("vinote").innerHTML = RmOhm>0
+    ? `Napięcie i prąd są powiązane średnią rezystancją cewki: U = I × R<sub>śr</sub> = <b class="mono">${f(Iset,1)} A × ${f(RmOhm*1000)} mΩ = ${f(V,3)} V</b>. Prąd ${f(Iset,0)} A amplitudy to ${f(Iset/Math.SQRT2,0)} A RMS (wartość skuteczna, jak na cęgach). Przy zmianie rezystancji stały pozostaje ${master==="I"?"prąd":"napięcie"} - wielkość edytowana jako ostatnia.`
+    : "Brak średniej rezystancji - popraw pomiary.";
+  const T = parseFloat($("temp").value); const Tc = isFinite(T)?T:20;
+  const valid = PH.every(k=>c[k]>0);
+  const pv=[p.UV,p.VW,p.WU], cv=[c.U,c.V,c.W];
+  const Ap=asym(pv), Ac=asym(cv);
+  const E = valid ? electrical(c,V) : null;
+  const Eref = valid ? electrical({U:Ac.mean,V:Ac.mean,W:Ac.mean},V) : null;
+
+  // alert
+  const al=$("alert");
+  if(!valid){
+    const neg=PH.filter(k=>c[k]<=0).map(k=>"R"+k).join(", ");
+    al.className="alert show";
+    al.innerHTML=`<b>Te trzy pomiary nie mogą pochodzić z jednego uzwojenia w gwieździe.</b> Wychodzi ujemna lub zerowa rezystancja: ${neg}. Jeden pomiar jest większy niż suma dwóch pozostałych. W praktyce oznacza to błąd pomiaru - zły styk klipsa, pomiar na gorącym silniku albo uzwojenie w trójkącie.`;
+  } else al.className="alert";
+
+  // obliczenia
+  const S=(p.UV+p.VW+p.WU)/2;
+  let h="";
+  h+=`<b>Krok 1</b>  połowa sumy pomiarów\n`;
+  h+=`S = (${f(p.UV)} + ${f(p.VW)} + ${f(p.WU)}) / 2\n`;
+  h+=`S = ${f(p.UV+p.VW+p.WU)} / 2 = <b>${f(S)} mΩ</b>\n\n`;
+  h+=`<b>Krok 2</b>  odejmij parę bez danej cewki\n`;
+  PAIRS.forEach(P=>{
+    const k=P.miss, v=S-p[P.k];
+    h+=`R${k} = S - R${P.a}${P.b} = ${f(S)} - ${f(p[P.k])} = <span class="${v>0?"":"bad"}"><b>${f(v)}</b></span>\n`;
+  });
+  h+=`\n<b>Krok 3</b>  sprawdzenie wsteczne\n`;
+  PAIRS.forEach(P=>{ h+=`R${P.a} + R${P.b} = ${f(c[P.a])} + ${f(c[P.b])} = ${f(c[P.a]+c[P.b])} <span class="ok">✓</span>\n`; });
+  $("calc").innerHTML=h;
+
+  // KPI
+  const cls = v => !valid?"fail": v>lim?"fail": v>lim*0.6?"warn":"pass";
+  const Ia = E? asym(E.I):null;
+  $("kpis").innerHTML = `
+    <div class="kpi ${valid?"":"fail"}"><div class="l">Niesymetria pomiarów międzyfazowych</div><div class="v">${pct(Ap.dev)}</div><div class="s">to pokazuje miernik</div></div>
+    <div class="kpi ${cls(Ac.dev)}"><div class="l">Niesymetria rzeczywistych cewek</div><div class="v">${valid?pct(Ac.dev):"-"}</div><div class="s">limit ${pct(lim,1)}</div></div>
+    <div class="kpi"><div class="l">Krotność: cewki względem pomiaru</div><div class="v">${valid&&Ap.dev>1e-6?f(Ac.dev/Ap.dev,2)+"×":"-"}</div><div class="s">w gwieździe zawsze 2×</div></div>
+    <div class="kpi ${E&&Ia.dev>lim?"warn":""}"><div class="l">Niesymetria prądów fazowych</div><div class="v">${E?pct(Ia.dev):"-"}</div><div class="s">przesunięcie N: ${E?f(E.vn/V*100,2)+"% U_f":"-"}</div></div>`;
+
+  // werdykt
+  const vd=$("verdict");
+  if(!valid){ vd.style.borderLeftColor="var(--red)"; vd.innerHTML="<b>Wynik nieinterpretowalny.</b> Powtórz pomiar przed wyciąganiem wniosków o stanie uzwojenia."; }
+  else if(Ac.dev<=1e-6){ vd.style.borderLeftColor="var(--fern)"; vd.innerHTML="<b>Uzwojenie idealnie symetryczne.</b> Trzy cewki mają tę samą rezystancję, punkt neutralny pozostaje w środku, wektor prądu zakreśla okrąg."; }
+  else{
+    const idx=cv.map(v=>Math.abs(v-Ac.mean)); const wi=idx.indexOf(Math.max(...idx)); const wk=PH[wi]; const up=cv[wi]>Ac.mean;
+    const hi=E? E.Pf.indexOf(Math.max(...E.Pf)):0; const hot=PH[hi];
+    const Pfm=E? E.Pf.reduce((a,b)=>a+b,0)/3:1;
+    vd.style.borderLeftColor = Ac.dev>lim?"var(--red)":Ac.dev>lim*0.6?"var(--sun)":"var(--fern)";
+    vd.innerHTML = `<b>${Ac.dev>lim?"Poza limitem.":Ac.dev>lim*0.6?"Blisko limitu.":"W limicie."}</b> Najbardziej odstaje cewka <b>${wk}</b> (${up?"wyższa":"niższa"} rezystancja o ${pct(Math.abs(cv[wi]-Ac.mean)/Ac.mean*100)}). `
+      + (up?"Typowe przyczyny: degradacja połączenia, zimny lut lub zacisk, częściowo przerwane przewody równoległe. ":"Typowa przyczyna: zwarcie międzyzwojowe skracające czynną długość uzwojenia. ")
+      + (E?`Przy regulacji prądu przez falownik najwięcej ciepła wydziela się w cewce <b>${hot}</b> (+${pct((E.Pf[hi]-Pfm)/Pfm*100)} względem średniej).`:"");
+  }
+
+  // tabela wpływu
+  if(E){
+    const Pm=Math.max(...E.Pf);
+    let t=`<tr><th>Cewka</th><th>R [mΩ]</th><th>Prąd [A]<br>zasilanie napięciowe</th><th>Straty [W]<br>zasilanie napięciowe</th><th>Straty [W]<br>regulacja prądu ${f(E.Iref,0)} A</th><th></th></tr>`;
+    PH.forEach((k,i)=>{
+      t+=`<tr><td><span class="tag"><i class="dot" style="background:${COL[k]}"></i>${k}</span></td><td class="mono">${f(c[k])}</td><td class="mono">${f(E.I[i],1)}</td><td class="mono">${f(E.P[i],1)}</td><td class="mono">${f(E.Pf[i],1)}</td><td><div class="bar"><i style="width:${(E.Pf[i]/Pm*100).toFixed(1)}%;background:${COL[k]}"></i></div></td></tr>`;
+    });
+    $("tbl").innerHTML=t;
+  } else $("tbl").innerHTML=`<tr><td style="text-align:left;color:#c43a2e">Brak rozwiązania - rezystancja cewki nie może być ujemna.</td></tr>`;
+
+  // tabela temperatury
+  const kT = 1+ALPHA*(Tc-20);
+  let tt=`<tr><th>Wielkość</th><th>Przy ${f(Tc,1)}°C [mΩ]</th><th>Przy 20°C [mΩ]</th></tr>`;
+  PAIRS.forEach(P=>{ tt+=`<tr><td>Pomiar ${P.a}-${P.b}</td><td class="mono">${f(p[P.k])}</td><td class="mono">${f(p[P.k]/kT)}</td></tr>`; });
+  PH.forEach(k=>{ tt+=`<tr><td>Cewka R<sub>${k}</sub></td><td class="mono">${f(c[k])}</td><td class="mono">${f(c[k]/kT)}</td></tr>`; });
+  $("ttbl").innerHTML=tt;
+  $("tnote").innerHTML=`Współczynnik korekcji: 1 + 0,00393 × (${f(Tc,1)} - 20) = <b class="mono">${f(kT,6)}</b>. To mnożnik wspólny dla wszystkich wartości, dlatego niesymetria procentowa (${valid?pct(Ac.dev):"-"}) jest identyczna przed i po kompensacji. Kompensacja jest potrzebna tylko do porównania wartości bezwzględnej ze specyfikacją.`;
+
+  drawStar(c,p,Ac,E,lim,valid);
+  drawLocus(E,Eref);
+}
+
+buildRows();
+render();
+})();
+</script>
+</body>
+</html>
